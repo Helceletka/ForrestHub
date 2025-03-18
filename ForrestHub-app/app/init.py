@@ -15,7 +15,7 @@ def path_exists(path):
     return Path(path).exists()
 
 
-def create_app(config_class: object | str):
+def create_app(config_class: object | str, ssl_context=None) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -52,7 +52,8 @@ def create_app(config_class: object | str):
     app.register_blueprint(socketio_blueprint)
 
     # Initialize SocketIO with eventlet support
-    socketio.init_app(app, async_mode="eventlet")
+    # socketio.init_app(app, cors_allowed_origins="*", ssl_context=ssl_context)
+    app.run(host="0.0.0.0", ssl_context=ssl_context, debug=True, use_reloader=False, port=app.config.get("PORT"))
 
     # Spustit asynchronní úkol na pozadí
     socketio.start_background_task(db.save_data_periodically)

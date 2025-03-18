@@ -2,18 +2,19 @@ import logging
 import sys
 import webbrowser
 import click
+import threading
+import ssl
 from app.init import create_app, socketio
 from config import Config
 from pathlib import Path
 from app.utils import is_port_free, find_free_port, setup_logging
 
-
 logger = logging.getLogger(__name__)
 __version__ = (Path(__file__).parent / "VERSION").read_text().strip()
 
-
-def run_flask(config: object | str, host="0.0.0.0", port=4444):
-    app = create_app(config)
+def run_flask(config: object | str, host="0.0.0.0", port=4444, ssl_context=None):
+    """Spustí Flask server na HTTP nebo HTTPS."""
+    app = create_app(config, ssl_context)
     socketio.run(
         app,
         host=host,
@@ -38,11 +39,11 @@ def main(port, host, host_qr, version):
         sys.exit(0)
 
     if port:
-        config.PORT = port
+        config.PORT = int(port)
 
     if host:
         config.HOST = host
-        
+
     if host_qr:
         config.HOST_QR = host_qr
 
@@ -51,17 +52,39 @@ def main(port, host, host_qr, version):
         logger.warning(f"Port {config.PORT} je již používán, přepínám na další dostupný port: {new_port}")
         config.PORT = new_port
 
-    local_ip = f"http://{config.HOST}:{config.PORT}"
+    # HTTPS port
+    https_port = 4433
+    if not is_port_free(config.HOST, https_port):
+        https_port = find_free_port(config.HOST, 4433)
+
+    local_http = f"http://{config.HOST}:{config.PORT}"
+    local_https = f"https://{config.HOST}:{https_port}"
 
     try:
         if config.FROZEN:
-            webbrowser.open(local_ip)
-            webbrowser.open(f"{local_ip}/admin")
+            webbrowser.open(local_http)
+            webbrowser.open(f"{local_http}/admin")
 
-        logger.info(f"Server byl spuštěn na adrese: {local_ip}")
+        logger.info(f"Server byl spuštěn na adrese: {local_http} (HTTP)")
+        logger.info(f"Server byl spuštěn na adrese: {local_https} (HTTPS)")
         logger.info("Press Ctrl-C to stop the server")
 
-        run_flask(config=config, host=config.HOST, port=config.PORT)
+        # Spuštění HTTP serveru ve vlákně
+        thread_http = threading.Thread(target=run_flask, args=(config, config.HOST, config.PORT, None))
+        thread_http.start()
+
+        # HTTPS certifikát
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_context.load_cert_chain("cert.pem", "key.pem")
+
+        # Spuštění HTTPS serveru ve vlákně
+        thread_https = threading.Thread(target=run_flask, args=(config, config.HOST, https_port, ssl_context))
+        thread_https.start()
+
+        # Počkej na dokončení obou vláken
+        thread_http.join()
+        thread_https.join()
+
     except KeyboardInterrupt:
         logger.info("Server byl ukončen")
         sys.exit(0)

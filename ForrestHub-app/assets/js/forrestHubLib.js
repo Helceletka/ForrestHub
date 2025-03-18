@@ -13,7 +13,7 @@ class ForrestHubLib {
      * @param isGame {boolean} - zda se jedná o stránku hry
      * @param url {string} - URL serveru pro Socket.io (pokud není zadáno, použije se hostname + port)
      */
-    constructor(isGame = true, url = "http://" + window.location.hostname + ":" + window.location.port) {
+    constructor(isGame = true, url = "https://" + window.location.hostname + ":" + window.location.port) {
         // Singleton kontrola (pokud už instance existuje)
         if (ForrestHubLib.instance) {
             console.warn("ForrestHubLib instance již existuje. Bude použita stávající instance.");
