@@ -140,6 +140,7 @@ def var_key_set_http():
         return jsonify({"status": "error", "message": "Project and key are required"}), 400
 
     # Replicating the exact db call from the socketio handler handle_key_set
+    db.var_key_set(project, key, value)
     result_data = db.var_key_get(project, key, value)
     return jsonify({"status": "ok", "data": result_data})
 
