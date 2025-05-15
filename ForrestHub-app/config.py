@@ -34,7 +34,7 @@ class Config:
     ASSETS_DIR = "assets"
     PAGES_DIR = "pages"
 
-    DEBUG = True
+    DEBUG = False
     USE_RELOADER = False
 
     # use live data if it exists
@@ -50,6 +50,6 @@ class Config:
     TEMPLATES_AUTO_RELOAD = True
 
     # Disable debug and reloader when using frozen data with live data - production mode
-    if not FROZEN:
-        # DEBUG = False
-        USE_RELOADER = True
+    # if not FROZEN:
+    #     # DEBUG = False
+    #     USE_RELOADER = True
