@@ -6,7 +6,8 @@ from app.init import create_app, socketio
 from config import Config
 from pathlib import Path
 from app.utils import is_port_free, find_free_port, setup_logging
-
+from werkzeug.middleware.proxy_fix import ProxyFix
+from app.utils import get_readable_ip
 
 logger = logging.getLogger(__name__)
 __version__ = (Path(__file__).parent / "VERSION").read_text().strip()
@@ -14,6 +15,17 @@ __version__ = (Path(__file__).parent / "VERSION").read_text().strip()
 
 def run_flask(config: object | str, host="0.0.0.0", port=4444):
     app = create_app(config)
+
+    # Za reverzní proxy – respektuj X-Forwarded-* (host, proto, port, prefix)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1, x_prefix=1)
+
+    # Preferuj https pro generované URL a zabezpeč cookies
+    app.config.update(
+        PREFERRED_URL_SCHEME="https",
+        SESSION_COOKIE_SECURE=True,
+        REMEMBER_COOKIE_SECURE=True,
+    )
+
     socketio.run(
         app,
         host=host,
@@ -45,6 +57,7 @@ def main(port, host, host_qr, version):
         
     if host_qr:
         config.HOST_QR = host_qr
+        config.HOST_QR_READABLE = get_readable_ip(config.HOST, config.PORT, config.HOST_QR)
 
     if not is_port_free(config.HOST, config.PORT):
         new_port = find_free_port(config.HOST, 4444)

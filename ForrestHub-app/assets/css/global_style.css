@@ -1,0 +1,13 @@
+.qrcode-wrapper {
+    display: inline-block;
+    background: #c2c2c2 !important;
+    padding: 0px;
+    height: 286px; /* 256px height + 15px border top + 15px border bottom */
+    border: 15px solid #ffffff !important;
+    border-radius: 10px;
+}
+.qrcode-wrapper canvas,
+.qrcode-wrapper img {
+    display: block;
+    margin-top: -15px;
+}

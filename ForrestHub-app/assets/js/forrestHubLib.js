@@ -13,7 +13,7 @@ class ForrestHubLib {
      * @param isGame {boolean} - zda se jedná o stránku hry
      * @param url {string} - URL serveru pro Socket.io (pokud není zadáno, použije se hostname + port)
      */
-    constructor(isGame = true, url = "http://" + window.location.hostname + ":" + window.location.port) {
+    constructor(isGame = true, url) {
         if (ForrestHubLib.instance) {
             return ForrestHubLib.instance;
         }
@@ -29,8 +29,12 @@ class ForrestHubLib {
             throw new Error('Socket.io není načteno.');
         }
 
-        // Vytvoření socketu
-        this.socket = io.connect(url);
+        // Cesta pro Socket.IO (pokud je aplikace pod prefixem, např. /Udavač/, přidej ho)
+        const firstSeg = window.location.pathname.split('/')[1] || '';
+        const socketPath = firstSeg ? `/socket.io/${encodeURIComponent(firstSeg)}` : '/socket.io';
+
+        // Vytvoření socketu bez pevného "http://", prohlížeč použije aktuální origin (vč. https)
+        this.socket = url ? io(url, { path: socketPath }) : io({ path: socketPath });
 
         // Přidání základních event listenerů
         this.eventAddListener('connect', () => {
@@ -215,7 +219,11 @@ class ForrestHubLib {
     socketSetServerUrl(url) {
         this.logDebug(`Měním serverové URL na: ${url}`);
         this.socketDisconnect();
-        this.socket = io.connect(url);
+
+        const firstSeg = window.location.pathname.split('/')[1] || '';
+        const socketPath = firstSeg ? `/socket.io/${encodeURIComponent(firstSeg)}` : '/socket.io';
+
+        this.socket = url ? io(url, { path: socketPath }) : io({ path: socketPath });
         this.logDebug(`Připojeno k novému serveru: ${url}`);
     }
 
