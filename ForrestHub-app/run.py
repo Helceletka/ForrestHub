@@ -39,7 +39,8 @@ def run_flask(config: object | str, host="0.0.0.0", port=4444):
 @click.option('--host', help='Host address to bind the server')
 @click.option('--host-qr', help='Host address shown in QR code in Admin panel')
 @click.option('--version', is_flag=True, help='Show the version from setup.py')
-def main(port, host, host_qr, version):
+@click.option('--server', is_flag=True, help='Run without reloader mode')
+def main(port, host, host_qr, version, server):
     config = Config()
     logger = setup_logging(config.EXECUTABLE_DIR, config.LOG_FOLDER)
     logging.basicConfig(level=logging.INFO)
@@ -58,6 +59,9 @@ def main(port, host, host_qr, version):
     if host_qr:
         config.HOST_QR = host_qr
         config.HOST_QR_READABLE = get_readable_ip(config.HOST, config.PORT, config.HOST_QR)
+
+    if server:
+        config.USE_RELOADER = False
 
     if not is_port_free(config.HOST, config.PORT):
         new_port = find_free_port(config.HOST, 4444)
