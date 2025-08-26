@@ -50,7 +50,7 @@ def main(port, host, host_qr, version):
         sys.exit(0)
 
     if port:
-        config.PORT = port
+        config.PORT = int(port)
 
     if host:
         config.HOST = host
