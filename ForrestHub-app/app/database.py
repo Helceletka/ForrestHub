@@ -12,7 +12,7 @@ class DatabaseKeys(Enum):
     ARR = "ARR_"
 
     def __add__(self, other):
-        return self.value + other
+        return self.value + str(other)
 
 def save_data(func):
     def wrapper(self, *args, **kwargs):

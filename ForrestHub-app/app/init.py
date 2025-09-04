@@ -2,6 +2,7 @@ from pathlib import Path
 
 from app.custom_loader import CustomLoader
 from app.database import Database
+from app.cron_runner import start_cron_scheduler
 from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
@@ -59,5 +60,6 @@ def create_app(config_class: object | str):
 
     # Spustit asynchronní úkol na pozadí
     socketio.start_background_task(db.save_data_periodically)
+    socketio.start_background_task(start_cron_scheduler, app)
 
     return app

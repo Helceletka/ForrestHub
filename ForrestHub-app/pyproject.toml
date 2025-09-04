@@ -1,0 +1,182 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ForrestHub App"
+dynamic = ["version"]
+license = ""
+dependencies = [
+    "flask>=3.1.0",
+    "flask-socketio>=5.5.0",
+    "gevent-websocket>=0.10.1",
+    "requests>=2.32.0",
+    "websocket-client>=1.8.0",
+    "flask-cors>=6.0.0",
+    "pyinstaller>=6.15.0",
+    "pyopenssl>=25.1.0",
+    "nanoid>=2.0.0",
+    "eventlet>=0.40.0",
+    "gunicorn>=23.0.0",
+    "python-dotenv>=1.1.0",
+    "click>=8.2.0",
+    "dotenv>=0.9.9",
+    "Js2Py @ git+https://github.com/a-j-albert/Js2Py---supports-python-3.13.git",
+]
+
+[project.entry-points.forrestHub]
+forrestHub = "run:app.run"
+
+[tool.hatch.version]
+path = "app/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/app",
+]
+
+[project.urls]
+Homepage = "https://forresthub.helceletka.cz"
+Repository = "https://github.com/Helceletka/ForrestHub"
+Documentation = "https://forresthub.helceletka.cz/docs"
+"Bug Reports" = "https://github.com/Helceletka/ForrestHub/issues"
+Changelog = "https://github.com/Helceletka/ForrestHub/blob/main/CHANGELOG.md"
+
+[project.scripts]
+forresthub = "run:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "assets", "games", "pages", "templates"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"VERSION" = "VERSION"
+"requirements.txt" = "requirements.txt"
+"gunicorn.conf.py" = "gunicorn.conf.py"
+"gunicorn-https.conf.py" = "gunicorn-https.conf.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=app {args:tests}"
+lint = [
+    "black --check --diff .",
+    "isort --check-only --diff .",
+    "flake8 .",
+]
+format = [
+    "black .",
+    "isort .",
+]
+type-check = "mypy app"
+
+[tool.hatch.envs.docs]
+dependencies = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0",
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "mkdocs build"
+serve = "mkdocs serve"
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312', 'py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["app"]
+skip = ["__init__.py"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".venv",
+    ".tox",
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "gevent.*",
+    "eventlet.*",
+    "flask_socketio.*",
+    "pyinstaller.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

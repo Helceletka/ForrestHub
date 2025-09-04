@@ -12,11 +12,11 @@ jobs:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     # Nastavíme Python (bez toho by příkaz "python setup.py --version" nemusel fungovat)
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
@@ -26,12 +26,18 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools
 
-    # Získáme verzi z ForrestHub-app/setup.py
-    - name: Get version from setup.py
+    # Get version from VERSION file
+    - name: Get version from VERSION file
       id: get_version
       run: |
         cd ForrestHub-app
-        echo "VERSION=$(python setup.py --version)" >> $GITHUB_ENV
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          VERSION=$(type VERSION)
+        else
+          VERSION=$(cat VERSION)
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+      shell: bash
 
     - name: Install dependencies
       run: |
@@ -89,5 +95,5 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./ForrestHub-macOS/ForrestHub
-        asset_name: ForrestHub-macOS
+        asset_name: ForrestHub-${{ env.VERSION }}-macOS
         asset_content_type: application/octet-stream

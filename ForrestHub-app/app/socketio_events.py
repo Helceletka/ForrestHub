@@ -12,7 +12,13 @@ socketio_bp = Blueprint("socketio", __name__)
 connected_clients = 0
 connected_admins = 0
 
-game_status = "running"
+game_status = "running"  # default; DB will override if set
+try:
+    _db_status = db.var_key_get("global", "game_status", game_status)
+    if _db_status:
+        game_status = _db_status
+except Exception:
+    pass
 
 ################## Admin Config ############################
 @socketio.on("send_admin_message")
@@ -35,16 +41,22 @@ def handle_disconnect():
 
 
 @socketio.on("game_status_get")
-def handle_game_status(demo):
-    global game_status
-    emit("game_status", game_status)
+def handle_game_status(_payload):
+    # Serve the current (DB-backed) status
+    current = db.var_key_get("global", "game_status", game_status)
+    emit("game_status", current)
 
 
 @socketio.on("game_status_set")
 def handle_game_status_set(status: str):
+    # Normalize + persist
+    s = (status or "").strip().lower()
+    if s not in ("running", "paused", "stopped"):
+        s = "paused"  # fallback on invalid inputs
     global game_status
-    game_status = status
-    emit("game_status", game_status, broadcast=True)
+    game_status = s
+    db.var_key_set("global", "game_status", s)
+    emit("game_status", s, broadcast=True)
 
 ################## Edit mode ############################
 
