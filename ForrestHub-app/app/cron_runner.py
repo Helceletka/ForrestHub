@@ -352,14 +352,15 @@ def _run_js_file(app, script_path: Path, timeout_sec: int):
 
 
 # --------------------- Scheduling ---------------------
-_CRON_FILE_RE = re.compile(r"^cron(?:\.(\d+))?\.js$")  # cron.js or cron.<seconds>.js
+# Accept "cron.js", "cron.<secs>.js", and also tolerate typos "cont.<secs>.js" or "corn.<secs>.js"
+_CRON_FILE_RE = re.compile(r"^(?:cron|cont|corn)(?:\.(\d+))?\.js$", re.IGNORECASE)
 
 
 def _discover_cron_scripts(game_dir: Path, default_interval: int) -> list[tuple[Path, int]]:
     """
     Return list of (script_path, interval_sec) for a game_dir.
     - cron.js -> default_interval
-    - cron.<N>.js -> N seconds
+    - cron.<N>.js (or cont./corn) -> N seconds
     """
     out: list[tuple[Path, int]] = []
     if not game_dir.exists():
@@ -379,10 +380,12 @@ def _discover_cron_scripts(game_dir: Path, default_interval: int) -> list[tuple[
 
 def start_cron_scheduler(app) -> None:
     """
-    Background loop with per-file scheduling:
+    Background loop with per-file scheduling, gated by global game_status:
       - Rescans game dirs every FH_CRON_RESCAN_SEC (default 5s)
       - Each cron file runs at its own interval (cron.<N>.js)
       - cron.js uses FH_CRON_DEFAULT_SEC (default 10s)
+      - Executes jobs only if db VAR 'game_status' == 'running' (case-insensitive)
+        otherwise pauses and pushes next_due forward (no catch-up).
     """
     default_interval = int(os.getenv("FH_CRON_DEFAULT_SEC", "10"))
     rescan_every = float(os.getenv("FH_CRON_RESCAN_SEC", "5"))
@@ -416,6 +419,9 @@ def start_cron_scheduler(app) -> None:
 
     last_rescan = 0.0
 
+    # lazy import to avoid cycles
+    from app.init import db
+
     with app.app_context():
         while True:
             now = time.monotonic()
@@ -425,20 +431,30 @@ def start_cron_scheduler(app) -> None:
                 _rescan()
                 last_rescan = now
 
-            # run due jobs
-            due_any = False
-            for script_path, meta in list(schedule.items()):
-                if meta["next_due"] <= now:
-                    due_any = True
-                    secs = meta["interval"]
-                    _log.info("Running %s (interval=%ss)", script_path, secs)
-                    try:
-                        _run_js_file(app, script_path, timeout)
-                    except Exception as loop_err:
-                        _log.exception("Execution error for %s: %s", script_path, loop_err)
-                    finally:
-                        # schedule next run strictly by interval
-                        meta["next_due"] = now + secs
+            # Check game status from DB (global VAR_game_status)
+            status = db.var_key_get("global", "game_status", "running")
+            is_running = str(status).lower() == "running" or status is True
+
+            if not is_running:
+                # Pause: push any overdue jobs forward so they don't burst on resume
+                for meta in schedule.values():
+                    if meta["next_due"] <= now:
+                        meta["next_due"] = now + meta["interval"]
+                _log.debug("Cron paused (status=%r).", status)
+
+            # run due jobs only if running
+            if is_running:
+                for script_path, meta in list(schedule.items()):
+                    if meta["next_due"] <= now:
+                        secs = meta["interval"]
+                        _log.info("Running %s (interval=%ss)", script_path, secs)
+                        try:
+                            _run_js_file(app, script_path, timeout)
+                        except Exception as loop_err:
+                            _log.exception("Execution error for %s: %s", script_path, loop_err)
+                        finally:
+                            # schedule next run strictly by interval
+                            meta["next_due"] = now + secs
 
             # compute sleep until next job or rescan
             if schedule:
