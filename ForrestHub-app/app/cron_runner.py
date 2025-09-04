@@ -1,5 +1,7 @@
 import os
+import re
 import json
+import time
 import logging
 from pathlib import Path
 
@@ -349,24 +351,103 @@ def _run_js_file(app, script_path: Path, timeout_sec: int):
         _log.exception("Error executing cron.js in '%s': %s", game_name, e)
 
 
+# --------------------- Scheduling ---------------------
+_CRON_FILE_RE = re.compile(r"^cron(?:\.(\d+))?\.js$")  # cron.js or cron.<seconds>.js
+
+
+def _discover_cron_scripts(game_dir: Path, default_interval: int) -> list[tuple[Path, int]]:
+    """
+    Return list of (script_path, interval_sec) for a game_dir.
+    - cron.js -> default_interval
+    - cron.<N>.js -> N seconds
+    """
+    out: list[tuple[Path, int]] = []
+    if not game_dir.exists():
+        return out
+    for child in game_dir.iterdir():
+        if not child.is_file() or child.suffix.lower() != ".js":
+            continue
+        m = _CRON_FILE_RE.match(child.name)
+        if not m:
+            continue
+        secs = int(m.group(1)) if m.group(1) else default_interval
+        if secs <= 0:
+            continue
+        out.append((child, secs))
+    return out
+
+
 def start_cron_scheduler(app) -> None:
     """
-    Background loop:
-      - Every FH_CRON_INTERVAL_SEC (default 10s)
-      - For each game dir, if cron.js exists, execute it with Js2Py.
+    Background loop with per-file scheduling:
+      - Rescans game dirs every FH_CRON_RESCAN_SEC (default 5s)
+      - Each cron file runs at its own interval (cron.<N>.js)
+      - cron.js uses FH_CRON_DEFAULT_SEC (default 10s)
     """
-    interval = int(os.getenv("FH_CRON_INTERVAL_SEC", "10"))
+    default_interval = int(os.getenv("FH_CRON_DEFAULT_SEC", "10"))
+    rescan_every = float(os.getenv("FH_CRON_RESCAN_SEC", "5"))
     timeout = int(os.getenv("FH_CRON_TIMEOUT_SEC", "8"))
 
-    _log.info("Starting JS cron scheduler (Js2Py): interval=%ss, timeout/run=%ss", interval, timeout)
+    # State: path -> {interval, next_due}
+    schedule: dict[Path, dict] = {}
+
+    _log.info(
+        "Starting JS cron scheduler (Js2Py): default=%ss, timeout/run=%ss, rescan=%ss",
+        default_interval, timeout, rescan_every
+    )
+
+    def _rescan():
+        """Rebuild/refresh schedule for current files while keeping next_due for unchanged ones."""
+        nonlocal schedule
+        current: dict[Path, dict] = {}
+        for game_dir in _discover_game_dirs(app):
+            for script_path, secs in _discover_cron_scripts(game_dir, default_interval):
+                prev = schedule.get(script_path)
+                if prev and prev["interval"] == secs:
+                    # keep its next_due
+                    current[script_path] = prev
+                else:
+                    # new or interval changed
+                    nd = time.monotonic() + secs  # first run after one period
+                    current[script_path] = {"interval": secs, "next_due": nd}
+                    _log.info("Scheduled %s (%ss) in %s", script_path.name, secs, game_dir.name)
+        # any removed files are dropped implicitly
+        schedule = current
+
+    last_rescan = 0.0
 
     with app.app_context():
         while True:
-            try:
-                for game_dir in _discover_game_dirs(app):
-                    cron_file = game_dir / "cron.js"
-                    if cron_file.exists():
-                        _run_js_file(app, cron_file, timeout)
-            except Exception as loop_err:
-                _log.exception("cron scheduler loop error: %s", loop_err)
-            sleep(interval)
+            now = time.monotonic()
+
+            # periodic rescan
+            if now - last_rescan >= rescan_every:
+                _rescan()
+                last_rescan = now
+
+            # run due jobs
+            due_any = False
+            for script_path, meta in list(schedule.items()):
+                if meta["next_due"] <= now:
+                    due_any = True
+                    secs = meta["interval"]
+                    _log.info("Running %s (interval=%ss)", script_path, secs)
+                    try:
+                        _run_js_file(app, script_path, timeout)
+                    except Exception as loop_err:
+                        _log.exception("Execution error for %s: %s", script_path, loop_err)
+                    finally:
+                        # schedule next run strictly by interval
+                        meta["next_due"] = now + secs
+
+            # compute sleep until next job or rescan
+            if schedule:
+                next_times = [meta["next_due"] for meta in schedule.values()]
+                next_due = min(next_times) if next_times else now + rescan_every
+                # wake up at the earlier of next_due or next rescan
+                wake_at = min(next_due, last_rescan + rescan_every)
+                delay = max(0.1, wake_at - time.monotonic())
+            else:
+                delay = rescan_every
+
+            sleep(delay)
