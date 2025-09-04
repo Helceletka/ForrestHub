@@ -21,6 +21,8 @@ a = Analysis(
         'app.errors',
         'app.routes',
         'app.socketio_events',
+        'app.cron_runner',
+        'js2py',
         'app.utils',
         'engineio.async_drivers.threading',
         'socketio',
