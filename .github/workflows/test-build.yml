@@ -15,10 +15,10 @@ jobs:
     permissions: write-all
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -28,11 +28,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools
 
-      # Načtení verze z ForrestHub-app/setup.py a zjištění data (PowerShell)
+      # Get version from VERSION file and date (PowerShell)
       - name: Get version and date
         run: |
           cd ForrestHub-app
-          $version = python setup.py --version
+          $version = Get-Content VERSION
           echo "VERSION=$version" >> $env:GITHUB_ENV
           $dateStr = Get-Date -Format "yyyyMMdd"
           echo "DATESTR=$dateStr" >> $env:GITHUB_ENV
@@ -60,30 +60,30 @@ jobs:
     permissions: write-all
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      # Install setuptools
-      - name: Install setuptools
+      # Install Hatch
+      - name: Install Hatch
         run: |
           python -m pip install --upgrade pip
           pip install setuptools
 
-      # Načtení verze z ForrestHub-app/setup.py a zjištění data (bash)
+      # Get version from VERSION file and date (bash)
       - name: Get version and date
         run: |
           cd ForrestHub-app
-          VERSION=$(python setup.py --version)
+          VERSION=$(cat VERSION)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           DATESTR=$(date +'%Y%m%d')
           echo "DATESTR=$DATESTR" >> $GITHUB_ENV
         shell: bash
 
-      - name: Install dependencies
+      - name: Install dependencies and build
         run: |
           python -m pip install --upgrade pip
           cd ForrestHub-app
