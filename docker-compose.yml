@@ -17,13 +17,19 @@ services:
       FH_HOST_QR: ${FH_HOST_QR:-fh.helceletka.cz}
       # When set to any value, runs with --server (no reloader)
       FH_SERVER: ${FH_SERVER:-1}
-      # Optional: pass any extra raw CLI args (e.g. "--version")
+      # Optional: pass any extra raw CLI args
       FH_EXTRA_ARGS: ${FH_EXTRA_ARGS:-}
+      # Persisted data directory inside the container (matches the volume below)
+      FH_DATA_DIR: /app/data
       # Read by config.py / Flask
       PORT: ${FH_PORT:-4444}
       HOST_QR: ${FH_HOST_QR:-fh.helceletka.cz}
     volumes:
-      # Persist runtime data, logs and live games on the host
-      - ./ForrestHub-app/ForrestHub-data.json:/app/ForrestHub-data.json
-      - ./ForrestHub-app/ForrestHub-logs:/app/ForrestHub-logs
-      - ./ForrestHub-app/ForrestHub-games:/app/ForrestHub-games
+      - forresthub_data:/app/data
+      - forresthub_logs:/app/ForrestHub-logs
+      - forresthub_games:/app/ForrestHub-games
+
+volumes:
+  forresthub_data:
+  forresthub_logs:
+  forresthub_games:

@@ -16,10 +16,17 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+# Keep an immutable seed of the default data file so the entrypoint can
+# initialise an empty volume on first run.
+RUN mkdir -p /app/_seed \
+    && cp ForrestHub-data.json /app/_seed/ForrestHub-data.json \
+    && chmod +x docker-entrypoint.sh
+
 EXPOSE 4444
 
 ENV FH_HOST=0.0.0.0 \
     FH_PORT=4444 \
-    FH_HOST_QR=
+    FH_HOST_QR= \
+    FH_DATA_DIR=/app/data
 
-ENTRYPOINT ["sh", "-c", "exec python run.py --host \"${FH_HOST}\" --port \"${FH_PORT}\" ${FH_HOST_QR:+--host-qr \"$FH_HOST_QR\"} ${FH_SERVER:+--server} $FH_EXTRA_ARGS"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
