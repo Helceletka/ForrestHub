@@ -1,0 +1,14 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+build
+dist
+ForrestHub-logs
+.DS_Store
+.idea
+.vscode
+.cache
+.qodo
+.env

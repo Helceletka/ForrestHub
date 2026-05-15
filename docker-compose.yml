@@ -1,0 +1,29 @@
+services:
+  forresthub:
+    build:
+      context: ./ForrestHub-app
+      dockerfile: Dockerfile
+    image: forresthub:local
+    container_name: forresthub
+    restart: unless-stopped
+    ports:
+      - "${FH_PUBLISH_PORT:-4444}:${FH_PORT:-4444}"
+    environment:
+      # Server bind address inside the container
+      FH_HOST: ${FH_HOST:-0.0.0.0}
+      # Internal port the Flask/SocketIO server listens on
+      FH_PORT: ${FH_PORT:-4444}
+      # Public host shown in QR codes (e.g. fh.helceletka.cz)
+      FH_HOST_QR: ${FH_HOST_QR:-fh.helceletka.cz}
+      # When set to any value, runs with --server (no reloader)
+      FH_SERVER: ${FH_SERVER:-1}
+      # Optional: pass any extra raw CLI args (e.g. "--version")
+      FH_EXTRA_ARGS: ${FH_EXTRA_ARGS:-}
+      # Read by config.py / Flask
+      PORT: ${FH_PORT:-4444}
+      HOST_QR: ${FH_HOST_QR:-fh.helceletka.cz}
+    volumes:
+      # Persist runtime data, logs and live games on the host
+      - ./ForrestHub-app/ForrestHub-data.json:/app/ForrestHub-data.json
+      - ./ForrestHub-app/ForrestHub-logs:/app/ForrestHub-logs
+      - ./ForrestHub-app/ForrestHub-games:/app/ForrestHub-games
