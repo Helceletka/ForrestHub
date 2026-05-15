@@ -21,6 +21,10 @@ services:
       FH_EXTRA_ARGS: ${FH_EXTRA_ARGS:-}
       # Persisted data directory inside the container (matches the volume below)
       FH_DATA_DIR: /app/data
+      # Drop privileges to these IDs so the code-server container (which runs as
+      # CODE_SERVER_PUID/PGID) can read and write the shared volumes.
+      FH_PUID: ${FH_PUID:-${CODE_SERVER_PUID:-1000}}
+      FH_PGID: ${FH_PGID:-${CODE_SERVER_PGID:-1000}}
       # Read by config.py / Flask
       PORT: ${FH_PORT:-4444}
       HOST_QR: ${FH_HOST_QR:-fh.helceletka.cz}
