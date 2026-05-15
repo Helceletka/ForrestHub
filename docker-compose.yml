@@ -29,7 +29,30 @@ services:
       - forresthub_logs:/app/ForrestHub-logs
       - forresthub_games:/app/ForrestHub-games
 
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: forresthub-code-server
+    restart: unless-stopped
+    ports:
+      - "${CODE_SERVER_PUBLISH_PORT:-8443}:8443"
+    environment:
+      PUID: ${CODE_SERVER_PUID:-1000}
+      PGID: ${CODE_SERVER_PGID:-1000}
+      TZ: ${CODE_SERVER_TZ:-Europe/Prague}
+      PASSWORD: ${CODE_SERVER_PASSWORD:-changeme}
+      SUDO_PASSWORD: ${CODE_SERVER_SUDO_PASSWORD:-}
+      PROXY_DOMAIN: ${CODE_SERVER_PROXY_DOMAIN:-}
+      DEFAULT_WORKSPACE: /config/workspace
+    volumes:
+      - code_server_config:/config
+      # Mount the ForrestHub state under the code-server workspace so it's
+      # visible/editable in the browser IDE.
+      - forresthub_data:/config/workspace/forresthub-data
+      - forresthub_logs:/config/workspace/forresthub-logs
+      - forresthub_games:/config/workspace/forresthub-games
+
 volumes:
   forresthub_data:
   forresthub_logs:
   forresthub_games:
+  code_server_config:
