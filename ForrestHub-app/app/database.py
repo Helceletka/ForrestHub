@@ -52,7 +52,11 @@ class Database:
         if not os.path.exists(path_to_data):
             self.save_to_file()
         with open(self.path_to_data, 'r') as f:
-            self.data = json.load(f)
+            try:
+                self.data = json.load(f)
+            except json.JSONDecodeError:
+                self.data = {}
+                self.save_to_file()
 
     def clear_data(self):
         self.data = {}
